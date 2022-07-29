@@ -1,6 +1,6 @@
 {
-  "name": "rate5",
-  "version": "0.0.0",
+  "name": "rate-core",
+  "version": "0.0.3",
   "description": "rate",
   "main": "./lib/index.js",
   "types": "./src/index.ts",
