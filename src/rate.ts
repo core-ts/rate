@@ -46,8 +46,9 @@ export interface Rater {
   comment(comment: Comment): Promise<number>;
   removeComment(id: string, author: string, ctx?: any): Promise<number>;
   updateComment(comment: Comment): Promise<number>;
+  getComments(id: string, author: string, limit?: number): Promise<Comment[]>;
+  getComment(id: string): Promise<Comment|null>;
 }
-
 export interface RateReactionRepository {
   remove(id: string, author: string, userId: string, ctx?: any): Promise<number>;
   save(id: string, author: string, userId: string, type: number): Promise<number>;
