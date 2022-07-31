@@ -1,6 +1,6 @@
 import { Attributes, Search, SearchResult } from './core';
 import {
-  InfoRepository, Rate, RateComment, RateCommentFilter, RateCommentRepository, RateCommentQuery, RateFilter, RateReactionRepository,
+  Comment, CommentFilter, InfoRepository, Rate, RateCommentRepository, RateCommentQuery, RateFilter, RateReactionRepository,
   RateRepository, Rater, ShortComment, ShortRate
 } from './rate';
 
@@ -14,7 +14,7 @@ export class RateService<O> implements Rater {
   constructor(protected find: Search<Rate, RateFilter>,
     public repository: RateRepository,
     private infoRepository: InfoRepository<O>,
-    private rateCommentRepository: RateCommentRepository,
+    private commentRepository: RateCommentRepository,
     private rateReactionRepository: RateReactionRepository,
     private queryURL?: (ids: string[]) => Promise<URL[]>) {
     this.rate = this.rate.bind(this);
@@ -22,6 +22,8 @@ export class RateService<O> implements Rater {
     this.removeComment = this.removeComment.bind(this);
     this.updateComment = this.updateComment.bind(this);
     this.search = this.search.bind(this);
+    this.getComment = this.getComment.bind(this);
+    this.getComments = this.getComments.bind(this);
   }
   async rate(rate: Rate): Promise<number> {
     rate.time = new Date();
@@ -80,21 +82,21 @@ export class RateService<O> implements Rater {
   removeUseful(id: string, author: string, userId: string): Promise<number> {
     return this.rateReactionRepository.remove(id, author, userId);
   }
-  comment(comment: RateComment): Promise<number> {
+  comment(comment: Comment): Promise<number> {
     return this.repository.getRate(comment.id, comment.author).then(checkRate => {
       if (!checkRate) {
         return -1;
       } else {
         comment.time ? comment.time = comment.time : comment.time = new Date();
-        return this.rateCommentRepository.insert(comment);
+        return this.commentRepository.insert(comment);
       }
     });
   }
   removeComment(commentId: string, userId: string): Promise<number> {
-    return this.rateCommentRepository.load(commentId).then(comment => {
+    return this.commentRepository.load(commentId).then(comment => {
       if (comment) {
         if (userId === comment.author || userId === comment.userId) {
-          return this.rateCommentRepository.remove(commentId, comment.id, comment.author);
+          return this.commentRepository.remove(commentId, comment.id, comment.author);
         } else {
           return -2;
         }
@@ -103,8 +105,8 @@ export class RateService<O> implements Rater {
       }
     });
   }
-  updateComment(comment: RateComment): Promise<number> {
-    return this.rateCommentRepository.load(comment.commentId).then(exist => {
+  updateComment(comment: Comment): Promise<number> {
+    return this.commentRepository.load(comment.commentId).then(exist => {
       if (!exist) {
         return -1;
       } else {
@@ -119,34 +121,36 @@ export class RateService<O> implements Rater {
           exist.histories = [c];
         }
         exist.comment = comment.comment;
-        const res =  this.rateCommentRepository.update(exist);
+        const res =  this.commentRepository.update(exist);
         return res;
       }
     });
   }
+  getComments(id: string, author: string, limit?: number): Promise<Comment[]> {
+    return this.commentRepository.getComments(id, author, limit);
+  }
+  getComment(id: string): Promise<Comment|null> {
+    return this.commentRepository.load(id);
+  }
 }
 export interface CommentRepository {
-  load(commentId: string, ctx?: any): Promise<RateComment|null>;
-  getComments?(id: string, author: string, limit?: number): Promise<RateComment[]>;
+  load(commentId: string, ctx?: any): Promise<Comment|null>;
+  getComments(id: string, author: string, limit?: number): Promise<Comment[]>;
 }
 // tslint:disable-next-line:max-classes-per-file
 export class CommentQuery implements RateCommentQuery {
-  constructor(protected find: Search<RateComment, RateCommentFilter>, protected repository: CommentRepository, private queryURL?: (ids: string[]) => Promise<URL[]>) {
+  constructor(protected find: Search<Comment, CommentFilter>, protected repository: CommentRepository, private queryURL?: (ids: string[]) => Promise<URL[]>) {
     this.load = this.load.bind(this);
     this.search = this.search.bind(this);
     this.getComments = this.getComments.bind(this)
   }
-  load(id: string, ctx?: any): Promise<RateComment|null> {
+  load(id: string, ctx?: any): Promise<Comment|null> {
     return this.repository.load(id, ctx);
   }
-  getComments(id: string, author: string, limit?: number): Promise<RateComment[]> {
-    if (this.repository.getComments) {
-      return this.repository.getComments(id, author, limit);
-    } else {
-      return Promise.resolve([]);
-    }
+  getComments(id: string, author: string, limit?: number): Promise<Comment[]> {
+    return this.repository.getComments(id, author, limit);
   }
-  search(s: RateCommentFilter, limit?: number, offset?: number | string, fields?: string[]): Promise<SearchResult<RateComment>> {
+  search(s: CommentFilter, limit?: number, offset?: number | string, fields?: string[]): Promise<SearchResult<Comment>> {
     return this.find(s, limit, offset, fields).then(res => {
       if (!this.queryURL) {
         return res;
@@ -203,7 +207,7 @@ export class CommentValidator {
   constructor(protected attributes: Attributes, protected check: (obj: any, attributes: Attributes) => ErrorMessage[]) {
     this.validate = this.validate.bind(this);
   }
-  validate(comment: RateComment): Promise<ErrorMessage[]> {
+  validate(comment: Comment): Promise<ErrorMessage[]> {
     const errs = this.check(comment, this.attributes);
     return Promise.resolve(errs);
   }

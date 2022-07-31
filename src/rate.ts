@@ -43,9 +43,9 @@ export interface Rater {
   rate(rate: Rate): Promise<number>;
   setUseful(id: string, author: string, userId: string, ctx?: any): Promise<number>;
   removeUseful(id: string, author: string, userId: string, ctx?: any): Promise<number>;
-  comment(comment: RateComment): Promise<number>;
+  comment(comment: Comment): Promise<number>;
   removeComment(id: string, author: string, ctx?: any): Promise<number>;
-  updateComment(comment: RateComment): Promise<number>;
+  updateComment(comment: Comment): Promise<number>;
 }
 
 export interface RateReactionRepository {
@@ -53,8 +53,9 @@ export interface RateReactionRepository {
   save(id: string, author: string, userId: string, type: number): Promise<number>;
 }
 
-export interface RateCommentRepository extends Repository<RateComment, string> {
+export interface RateCommentRepository extends Repository<Comment, string> {
   remove(commentId: string, id: string, author: string): Promise<number>;
+  getComments(id: string, author: string, limit?: number): Promise<Comment[]>;
 }
 
 export interface Query<T, ID, S> {
@@ -62,8 +63,8 @@ export interface Query<T, ID, S> {
   metadata?(): Attributes|undefined;
   load(id: ID, ctx?: any): Promise<T|null>;
 }
-export interface RateCommentQuery extends Query<RateComment, string, RateCommentFilter> {
-  getComments(id: string, author: string, limit?: number): Promise<RateComment[]>;
+export interface RateCommentQuery extends Query<Comment, string, CommentFilter> {
+  getComments(id: string, author: string, limit?: number): Promise<Comment[]>;
 }
 export const rateHistoryModel: Attributes = {
   rate: {
@@ -213,13 +214,13 @@ export interface Info10 {
 export interface InfoRepository<T> extends ViewRepository<T, string> {
 }
 
-export interface RateCommentId {
+export interface CommentId {
   id: string;
   author: string;
   userId: string;
 }
 
-export interface RateComment {
+export interface Comment {
   commentId: string;
   id: string;
   author: string;
@@ -236,7 +237,7 @@ export interface ShortComment {
   time: Date;
 }
 
-export interface RateCommentFilter extends Filter {
+export interface CommentFilter extends Filter {
   commentId?: string;
   id?: string;
   author?: string;
