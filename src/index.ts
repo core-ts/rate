@@ -1,7 +1,7 @@
 import { Attributes, Search, SearchResult } from './core';
 import {
-  Comment, CommentFilter, InfoRepository, Rate, RateCommentRepository, RateCommentQuery, RateFilter, RateReactionRepository,
-  RateRepository, Rater, ShortComment, ShortRate
+  Comment, CommentFilter, InfoRepository, Rate, RateCommentQuery, RateCommentRepository, RateFilter, Rater,
+  RateReactionRepository, RateRepository, ShortComment, ShortRate
 } from './rate';
 
 export * from './rate';
@@ -142,7 +142,7 @@ export class CommentQuery implements RateCommentQuery {
   constructor(protected find: Search<Comment, CommentFilter>, protected repository: CommentRepository, private queryURL?: (ids: string[]) => Promise<URL[]>) {
     this.load = this.load.bind(this);
     this.search = this.search.bind(this);
-    this.getComments = this.getComments.bind(this)
+    this.getComments = this.getComments.bind(this);
   }
   load(id: string, ctx?: any): Promise<Comment|null> {
     return this.repository.load(id, ctx);
