@@ -78,7 +78,7 @@ export interface ViewRepository<T, ID> {
   keys?(): string[];
   all?(ctx?: any): Promise<T[]>;
   load(id: ID, ctx?: any): Promise<T|null>;
-  exist?(id: ID, ctx?: any): Promise<boolean>;
+  exist(id: ID, ctx?: any): Promise<boolean>;
 }
 export interface Repository<T, ID> extends ViewRepository<T, ID> {
   insert(obj: T, ctx?: any): Promise<number>;

@@ -1,7 +1,7 @@
 import { Attributes, Search, SearchResult } from './core';
 import {
-  Comment, CommentFilter, InfoRepository, Rate, RateCommentQuery, RateCommentRepository, RateFilter, Rater,
-  RateReactionRepository, RateRepository, ShortComment, ShortRate
+  BaseRate, BaseRepository, Comment, InfoRepository, Rate, RateCommentRepository, RateFilter, Rater, RateReactionRepository,
+  Rates, RatesFilter, ShortComment, ShortRate, ShortRates
 } from './rate';
 
 export * from './rate';
@@ -10,14 +10,13 @@ export interface URL {
   id: string;
   url: string;
 }
-export class RateService<O> implements Rater {
-  constructor(protected find: Search<Rate, RateFilter>,
-    public repository: RateRepository,
-    private infoRepository: InfoRepository<O>,
-    private commentRepository: RateCommentRepository,
-    private rateReactionRepository: RateReactionRepository,
-    private queryURL?: (ids: string[]) => Promise<URL[]>) {
-    this.rate = this.rate.bind(this);
+export class ReactionService<R extends BaseRate, F, O> {
+  constructor(protected find: Search<R, F>,
+    public repository: BaseRepository<R>,
+    protected infoRepository: InfoRepository<O>,
+    protected commentRepository: RateCommentRepository,
+    protected reactionRepository: RateReactionRepository,
+    protected queryURL?: (ids: string[]) => Promise<URL[]>) {
     this.search = this.search.bind(this);
     this.load = this.load.bind(this);
     this.getRate = this.getRate.bind(this);
@@ -29,30 +28,7 @@ export class RateService<O> implements Rater {
     this.getComments = this.getComments.bind(this);
     this.getComment = this.getComment.bind(this);
   }
-  async rate(rate: Rate): Promise<number> {
-    rate.time = new Date();
-    const info = await this.infoRepository.load(rate.id);
-    if (!info) {
-      const r0 = await this.repository.insert(rate, true);
-      return r0;
-    }
-    const exist = await this.repository.load(rate.id, rate.author);
-    if (!exist) {
-      const r1 = await this.repository.insert(rate);
-      return r1;
-    }
-    const sr: ShortRate = { review: exist.review, rate: exist.rate, time: exist.time };
-    if (exist.histories && exist.histories.length > 0) {
-      const history = exist.histories;
-      history.push(sr);
-      rate.histories = history;
-    } else {
-      rate.histories = [sr];
-    }
-    const res = await this.repository.update(rate, exist.rate);
-    return res;
-  }
-  search(s: RateFilter, limit?: number, offset?: number | string, fields?: string[]): Promise<SearchResult<Rate>> {
+  search(s: F, limit?: number, offset?: number | string, fields?: string[]): Promise<SearchResult<R>> {
     return this.find(s, limit, offset, fields).then(res => {
       if (!this.queryURL) {
         return res;
@@ -77,17 +53,17 @@ export class RateService<O> implements Rater {
       }
     });
   }
-  load(id: string, author: string): Promise<Rate | null> {
+  load(id: string, author: string): Promise<R | null> {
     return this.repository.load(id, author);
   }
-  getRate(id: string, author: string): Promise<Rate | null> {
+  getRate(id: string, author: string): Promise<R | null> {
     return this.repository.load(id, author);
   }
   setUseful(id: string, author: string, userId: string): Promise<number> {
-    return this.rateReactionRepository.save(id, author, userId, 1);
+    return this.reactionRepository.save(id, author, userId, 1);
   }
   removeUseful(id: string, author: string, userId: string): Promise<number> {
-    return this.rateReactionRepository.remove(id, author, userId);
+    return this.reactionRepository.remove(id, author, userId);
   }
   comment(comment: Comment): Promise<number> {
     return this.repository.load(comment.id, comment.author).then(checkRate => {
@@ -128,75 +104,146 @@ export class RateService<O> implements Rater {
           exist.histories = [c];
         }
         exist.comment = comment.comment;
-        const res =  this.commentRepository.update(exist);
+        const res = this.commentRepository.update(exist);
         return res;
       }
     });
   }
   getComments(id: string, author: string, limit?: number): Promise<Comment[]> {
-    return this.commentRepository.getComments(id, author, limit);
+    return this.commentRepository.getComments(id, author, limit).then(comments => {
+      if (this.queryURL) {
+        const ids: string[] = [];
+        for (const comment of comments) {
+          ids.push(comment.userId);
+        }
+        return this.queryURL(ids).then(urls => {
+          for (const comment of comments) {
+            const i = binarySearch(urls, comment.userId);
+            if (i >= 0) {
+              comment.userURL = urls[i].url;
+            }
+          }
+          return comments;
+        });
+      } else {
+        return comments;
+      }
+    });
   }
-  getComment(id: string): Promise<Comment|null> {
-    return this.commentRepository.load(id);
+  getComment(id: string): Promise<Comment | null> {
+    return this.commentRepository.load(id).then(comment => {
+      if (comment && this.queryURL) {
+        return this.queryURL([id]).then(urls => {
+          const i = binarySearch(urls, comment.userId);
+          if (i >= 0) {
+            comment.userURL = urls[i].url;
+          }
+          return comment;
+        });
+      } else {
+        return comment;
+      }
+    });
   }
 }
 export interface CommentRepository {
-  load(commentId: string, ctx?: any): Promise<Comment|null>;
+  load(commentId: string, ctx?: any): Promise<Comment | null>;
   getComments(id: string, author: string, limit?: number): Promise<Comment[]>;
 }
 // tslint:disable-next-line:max-classes-per-file
-export class CommentQuery implements RateCommentQuery {
-  constructor(protected find: Search<Comment, CommentFilter>, protected repository: CommentRepository, private queryURL?: (ids: string[]) => Promise<URL[]>) {
-    this.load = this.load.bind(this);
-    this.search = this.search.bind(this);
-    this.getComments = this.getComments.bind(this);
+export class RateService<O> extends ReactionService<Rate, RateFilter, O> implements Rater<Rate, RateFilter> {
+  constructor(find: Search<Rate, RateFilter>,
+    repository: BaseRepository<Rate>,
+    infoRepository: InfoRepository<O>,
+    commentRepository: RateCommentRepository,
+    reactionRepository: RateReactionRepository,
+    queryURL?: (ids: string[]) => Promise<URL[]>) {
+    super(find, repository, infoRepository, commentRepository, reactionRepository, queryURL);
+    this.rate = this.rate.bind(this);
   }
-  load(id: string, ctx?: any): Promise<Comment|null> {
-    return this.repository.load(id, ctx);
+  async rate(rate: Rate): Promise<number> {
+    rate.time = new Date();
+    const info = await this.infoRepository.exist(rate.id);
+    if (!info) {
+      const r0 = await this.repository.insert(rate, true);
+      return r0;
+    }
+    const exist = await this.repository.load(rate.id, rate.author);
+    if (!exist) {
+      const r1 = await this.repository.insert(rate);
+      return r1;
+    }
+    const sr: ShortRate = { review: exist.review, rate: exist.rate, time: exist.time };
+    if (exist.histories && exist.histories.length > 0) {
+      const history = exist.histories;
+      history.push(sr);
+      rate.histories = history;
+    } else {
+      rate.histories = [sr];
+    }
+    const res = await this.repository.update(rate, exist.rate);
+    return res;
   }
-  getComments(id: string, author: string, limit?: number): Promise<Comment[]> {
-    return this.repository.getComments(id, author, limit);
+}
+export function avg(n: number[]): number {
+  let sum = 0;
+  for (const s of n) {
+    sum = sum + s;
   }
-  search(s: CommentFilter, limit?: number, offset?: number | string, fields?: string[]): Promise<SearchResult<Comment>> {
-    return this.find(s, limit, offset, fields).then(res => {
-      if (!this.queryURL) {
-        return res;
-      } else {
-        if (res.list && res.list.length > 0) {
-          const ids: string[] = [];
-          for (const rate of res.list) {
-            ids.push(rate.userId);
-          }
-          return this.queryURL(ids).then(urls => {
-            for (const rate of res.list) {
-              const i = binarySearch(urls, rate.userId);
-              if (i >= 0) {
-                rate.userURL = urls[i].url;
-              }
-            }
-            return res;
-          });
-        } else {
-          return res;
-        }
-      }
-    });
+  return sum / n.length;
+}
+// tslint:disable-next-line:max-classes-per-file
+export class RatesService<O> extends ReactionService<Rates, RatesFilter, O> implements Rater<Rates, RatesFilter> {
+  constructor(find: Search<Rates, RatesFilter>,
+    repository: BaseRepository<Rates>,
+    infoRepository: InfoRepository<O>,
+    commentRepository: RateCommentRepository,
+    reactionRepository: RateReactionRepository,
+    queryURL?: (ids: string[]) => Promise<URL[]>) {
+    super(find, repository, infoRepository, commentRepository, reactionRepository, queryURL);
+    this.rate = this.rate.bind(this);
+  }
+  async rate(rate: Rates): Promise<number> {
+    const info = await this.infoRepository.exist(rate.id);
+    if (rate.rates && rate.rates.length > 0) {
+      rate.rate = avg(rate.rates);
+    }
+    rate.time = new Date();
+    if (!info) {
+      const r0 = await this.repository.insert(rate, true);
+      return r0;
+    }
+    const exist = await this.repository.load(rate.id, rate.author);
+    if (!exist) {
+      const r1 = await this.repository.insert(rate);
+      return r1;
+    }
+    const sr: ShortRates = { review: exist.review, rates: exist.rates, time: exist.time };
+    if (exist.histories && exist.histories.length > 0) {
+      const history = exist.histories;
+      history.push(sr);
+      rate.histories = history;
+    } else {
+      rate.histories = [sr];
+    }
+    const res = await this.repository.update(rate, exist.rate);
+    return res;
   }
 }
 function binarySearch(ar: URL[], el: string): number {
   let m = 0;
   let n = ar.length - 1;
   while (m <= n) {
-      // tslint:disable-next-line:no-bitwise
-      const k = (n + m) >> 1;
-      const cmp = compare(el, ar[k].id);
-      if (cmp > 0) {
-          m = k + 1;
-      } else if (cmp < 0) {
-          n = k - 1;
-      } else {
-          return k;
-      }
+    // tslint:disable-next-line:no-bitwise
+    const k = (n + m) >> 1;
+    const cmp = compare(el, ar[k].id);
+    if (cmp > 0) {
+      m = k + 1;
+    } else if (cmp < 0) {
+      n = k - 1;
+    } else {
+      return k;
+    }
   }
   return -m - 1;
 }
@@ -206,7 +253,7 @@ function compare(s1: string, s2: string): number {
 interface ErrorMessage {
   field: string;
   code: string;
-  param?: string|number|Date;
+  param?: string | number | Date;
   message?: string;
 }
 // tslint:disable-next-line:max-classes-per-file
@@ -237,6 +284,32 @@ export class RateValidator {
     } else {
       return Promise.resolve(errs);
     }
+  }
+}
+// tslint:disable-next-line:max-classes-per-file
+export class RatesValidator {
+  constructor(protected attributes: Attributes, protected check: (obj: any, attributes: Attributes) => ErrorMessage[], protected max: number, protected length: number) {
+    this.validate = this.validate.bind(this);
+  }
+  validate(rate: Rates): Promise<ErrorMessage[]> {
+    const errs = this.check(rate, this.attributes);
+    if (!rate.rates || rate.rates.length === 0) {
+      const err = createError('rates', 'required');
+      errs.push(err);
+      return Promise.resolve(errs);
+    }
+    if (rate.rates.length !== this.length) {
+      const err = createError('rates', 'length', this.length);
+      errs.push(err);
+      return Promise.resolve(errs);
+    }
+    for (const r of rate.rates) {
+      if (r > this.max) {
+        const err = createError('rates', 'max', this.max);
+        errs.push(err);
+      }
+    }
+    return Promise.resolve(errs);
   }
 }
 function createError(field: string, code?: string, param?: string | number | Date): ErrorMessage {

@@ -4,12 +4,13 @@ export interface RateId {
   id: string;
   author: string;
 }
-
-export interface Rate {
-  id: string;
+export interface BaseRate {
   author: string;
   authorURL?: string;
   rate: number;
+}
+export interface Rate extends BaseRate {
+  id: string;
   time: Date;
   review: string;
   usefulCount: number;
@@ -30,24 +31,56 @@ export interface RateFilter extends Filter {
   usefulCount?: number;
   replyCount?: number;
 }
-
-export interface RateRepository {
-  // save(obj: Rate, info?: T, ctx?: any): Promise<number>;
-  insert(rate: Rate, newInfo?: boolean): Promise<number>;
-  update(rate: Rate, oldRate: number): Promise<number>;
-  load(id: string, author: string): Promise<Rate | null>;
+export interface RateInfo {
+  id: string;
+  rate: number;
+  count: number;
+  score: number;
 }
-export interface Rater {
-  search(s: RateFilter, limit?: number, offset?: number | string, fields?: string[], ctx?: any): Promise<SearchResult<Rate>>;
-  load(id: string, author: string): Promise<Rate | null>;
-  rate(rate: Rate): Promise<number>;
+export interface ShortRates {
+  rates: number[];
+  time: Date;
+  review: string;
+}
+export interface Rates extends BaseRate {
+  id: string;
+  rates: number[];
+  time: Date;
+  review: string;
+  usefulCount: number;
+  replyCount: number;
+  histories?: ShortRates[];
+}
+export interface RatesFilter extends RateFilter {
+  rates?: number[];
+  rate1: number;
+  rate2: number;
+  rate3: number;
+  rate4: number;
+  rate5: number;
+  rate6: number;
+  rate7: number;
+  rate8: number;
+  rate9: number;
+  rate10: number;
+}
+export interface BaseRepository<R> {
+  // save(obj: Rate, info?: T, ctx?: any): Promise<number>;
+  insert(rate: R, newInfo?: boolean): Promise<number>;
+  update(rate: R, oldRate: number): Promise<number>;
+  load(id: string, author: string): Promise<R | null>;
+}
+export interface Rater<R, F extends Filter> {
+  search(s: F, limit?: number, offset?: number | string, fields?: string[], ctx?: any): Promise<SearchResult<R>>;
+  load(id: string, author: string): Promise<R | null>;
+  rate(rate: R): Promise<number>;
   setUseful(id: string, author: string, userId: string, ctx?: any): Promise<number>;
   removeUseful(id: string, author: string, userId: string, ctx?: any): Promise<number>;
   comment(comment: Comment): Promise<number>;
   removeComment(id: string, author: string, ctx?: any): Promise<number>;
   updateComment(comment: Comment): Promise<number>;
   getComments(id: string, author: string, limit?: number): Promise<Comment[]>;
-  getComment(id: string): Promise<Comment|null>;
+  getComment(id: string): Promise<Comment | null>;
 }
 export interface RateReactionRepository {
   remove(id: string, author: string, userId: string, ctx?: any): Promise<number>;
@@ -60,9 +93,9 @@ export interface RateCommentRepository extends Repository<Comment, string> {
 }
 
 export interface Query<T, ID, S> {
-  search: (s: S, limit?: number, skip?: number|string, fields?: string[]) => Promise<SearchResult<T>>;
-  metadata?(): Attributes|undefined;
-  load(id: ID, ctx?: any): Promise<T|null>;
+  search: (s: S, limit?: number, skip?: number | string, fields?: string[]) => Promise<SearchResult<T>>;
+  metadata?(): Attributes | undefined;
+  load(id: ID, ctx?: any): Promise<T | null>;
 }
 export interface RateCommentQuery extends Query<Comment, string, CommentFilter> {
   getComments(id: string, author: string, limit?: number): Promise<Comment[]>;
@@ -247,3 +280,40 @@ export interface CommentFilter extends Filter {
   time?: Date;
   updatedAt?: Date;
 }
+
+export const rateInfoModel: Attributes = {
+  id: {
+    key: true
+  },
+  rate: {
+    type: 'number',
+  },
+  count: {
+    type: 'integer',
+  },
+  score: {
+    type: 'number',
+  }
+};
+
+export const ratesModel: Attributes = {
+  id: {
+    key: true,
+    match: 'equal'
+  },
+  author: {
+    key: true,
+    match: 'equal'
+  },
+  rate: {
+    type: 'number'
+  },
+  rates: {
+    required: true,
+    type: 'integers'
+  },
+  time: {
+    type: 'datetime'
+  },
+  review: {},
+};
