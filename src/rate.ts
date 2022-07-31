@@ -35,11 +35,11 @@ export interface RateRepository {
   // save(obj: Rate, info?: T, ctx?: any): Promise<number>;
   insert(rate: Rate, newInfo?: boolean): Promise<number>;
   update(rate: Rate, oldRate: number): Promise<number>;
-  getRate(id: string, author: string): Promise<Rate | null>;
+  load(id: string, author: string): Promise<Rate | null>;
 }
 export interface Rater {
   search(s: RateFilter, limit?: number, offset?: number | string, fields?: string[], ctx?: any): Promise<SearchResult<Rate>>;
-  getRate(id: string, author: string): Promise<Rate | null>;
+  load(id: string, author: string): Promise<Rate | null>;
   rate(rate: Rate): Promise<number>;
   setUseful(id: string, author: string, userId: string, ctx?: any): Promise<number>;
   removeUseful(id: string, author: string, userId: string, ctx?: any): Promise<number>;
@@ -247,45 +247,3 @@ export interface CommentFilter extends Filter {
   time?: Date;
   updatedAt?: Date;
 }
-export const commentModel: Attributes = {
-  comment: {
-    length: 500
-  },
-  time: {
-    type: 'datetime'
-  }
-};
-export const rateCommentModel: Attributes = {
-  commentId: {
-    key: true
-  },
-  id: {
-    required: true,
-    noupdate: true,
-    match: 'equal'
-  },
-  author: {
-    required: true,
-    noupdate: true,
-    match: 'equal'
-  },
-  userId: {
-    required: true,
-    noupdate: true,
-    match: 'equal'
-  },
-  comment: {
-    length: 500
-  },
-  time: {
-    type: 'datetime',
-    noupdate: true,
-  },
-  updatedAt: {
-    type: 'datetime'
-  },
-  histories: {
-    type: 'array',
-    typeof: commentModel
-  }
-};

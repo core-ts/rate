@@ -18,12 +18,16 @@ export class RateService<O> implements Rater {
     private rateReactionRepository: RateReactionRepository,
     private queryURL?: (ids: string[]) => Promise<URL[]>) {
     this.rate = this.rate.bind(this);
+    this.search = this.search.bind(this);
+    this.load = this.load.bind(this);
+    this.getRate = this.getRate.bind(this);
+    this.setUseful = this.setUseful.bind(this);
+    this.removeUseful = this.removeUseful.bind(this);
     this.comment = this.comment.bind(this);
     this.removeComment = this.removeComment.bind(this);
     this.updateComment = this.updateComment.bind(this);
-    this.search = this.search.bind(this);
-    this.getComment = this.getComment.bind(this);
     this.getComments = this.getComments.bind(this);
+    this.getComment = this.getComment.bind(this);
   }
   async rate(rate: Rate): Promise<number> {
     rate.time = new Date();
@@ -32,7 +36,7 @@ export class RateService<O> implements Rater {
       const r0 = await this.repository.insert(rate, true);
       return r0;
     }
-    const exist = await this.repository.getRate(rate.id, rate.author);
+    const exist = await this.repository.load(rate.id, rate.author);
     if (!exist) {
       const r1 = await this.repository.insert(rate);
       return r1;
@@ -73,8 +77,11 @@ export class RateService<O> implements Rater {
       }
     });
   }
+  load(id: string, author: string): Promise<Rate | null> {
+    return this.repository.load(id, author);
+  }
   getRate(id: string, author: string): Promise<Rate | null> {
-    return this.repository.getRate(id, author);
+    return this.repository.load(id, author);
   }
   setUseful(id: string, author: string, userId: string): Promise<number> {
     return this.rateReactionRepository.save(id, author, userId, 1);
@@ -83,7 +90,7 @@ export class RateService<O> implements Rater {
     return this.rateReactionRepository.remove(id, author, userId);
   }
   comment(comment: Comment): Promise<number> {
-    return this.repository.getRate(comment.id, comment.author).then(checkRate => {
+    return this.repository.load(comment.id, comment.author).then(checkRate => {
       if (!checkRate) {
         return -1;
       } else {
