@@ -1,4 +1,4 @@
-import { Attributes, Filter, Repository, SearchResult, ViewRepository } from './core';
+import { Attributes, Filter } from './core';
 
 export interface RateId {
   id: string;
@@ -65,40 +65,13 @@ export interface RatesFilter extends RateFilter {
   rate10: number;
 }
 export interface BaseRepository<R> {
-  // save(obj: Rate, info?: T, ctx?: any): Promise<number>;
   insert(rate: R, newInfo?: boolean): Promise<number>;
   update(rate: R, oldRate: number): Promise<number>;
   load(id: string, author: string): Promise<R | null>;
 }
-export interface Rater<R, F extends Filter> {
-  search(s: F, limit?: number, offset?: number | string, fields?: string[], ctx?: any): Promise<SearchResult<R>>;
-  load(id: string, author: string): Promise<R | null>;
+
+export interface Rater<R> {
   rate(rate: R): Promise<number>;
-  setUseful(id: string, author: string, userId: string, ctx?: any): Promise<number>;
-  removeUseful(id: string, author: string, userId: string, ctx?: any): Promise<number>;
-  comment(comment: Comment): Promise<number>;
-  removeComment(id: string, author: string, ctx?: any): Promise<number>;
-  updateComment(comment: Comment): Promise<number>;
-  getComments(id: string, author: string, limit?: number): Promise<Comment[]>;
-  getComment(id: string): Promise<Comment | null>;
-}
-export interface RateReactionRepository {
-  remove(id: string, author: string, userId: string, ctx?: any): Promise<number>;
-  save(id: string, author: string, userId: string, type: number): Promise<number>;
-}
-
-export interface RateCommentRepository extends Repository<Comment, string> {
-  remove(commentId: string, id: string, author: string): Promise<number>;
-  getComments(id: string, author: string, limit?: number): Promise<Comment[]>;
-}
-
-export interface Query<T, ID, S> {
-  search: (s: S, limit?: number, skip?: number | string, fields?: string[]) => Promise<SearchResult<T>>;
-  metadata?(): Attributes | undefined;
-  load(id: ID, ctx?: any): Promise<T | null>;
-}
-export interface RateCommentQuery extends Query<Comment, string, CommentFilter> {
-  getComments(id: string, author: string, limit?: number): Promise<Comment[]>;
 }
 export const rateHistoryModel: Attributes = {
   rate: {
@@ -245,40 +218,8 @@ export interface Info10 {
   count: number;
   score: number;
 }
-export interface InfoRepository<T> extends ViewRepository<T, string> {
-}
-
-export interface CommentId {
-  id: string;
-  author: string;
-  userId: string;
-}
-
-export interface Comment {
-  commentId: string;
-  id: string;
-  author: string;
-  userId: string;
-  comment: string;
-  time: Date;
-  updatedAt?: Date;
-  histories?: ShortComment[];
-  userURL?: string;
-  authorURL?: string;
-}
-export interface ShortComment {
-  comment: string;
-  time: Date;
-}
-
-export interface CommentFilter extends Filter {
-  commentId?: string;
-  id?: string;
-  author?: string;
-  userId?: string;
-  comment?: string;
-  time?: Date;
-  updatedAt?: Date;
+export interface InfoRepository {
+  exist(id: string, ctx?: any): Promise<boolean>;
 }
 
 export const rateInfoModel: Attributes = {
@@ -295,7 +236,6 @@ export const rateInfoModel: Attributes = {
     type: 'number',
   }
 };
-
 export const ratesModel: Attributes = {
   id: {
     key: true,

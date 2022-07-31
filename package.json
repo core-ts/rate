@@ -1,7 +1,7 @@
 {
-  "name": "reaction-service",
-  "version": "0.5.0",
-  "description": "reaction",
+  "name": "rate-core",
+  "version": "0.5.2",
+  "description": "rate",
   "main": "./lib/index.js",
   "types": "./src/index.ts",
   "scripts": {
@@ -20,9 +20,7 @@
     "url": "git@github.com/core-ts/rate"
   },
   "keywords": [
-    "reaction",
-    "reaction service",
     "rate",
-    "rate service"
+    "rate core"
   ]
 }
