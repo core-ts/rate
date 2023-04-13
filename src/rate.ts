@@ -7,6 +7,9 @@ export interface RateId {
 export interface BaseRate {
   author: string;
   authorURL?: string;
+  name: string;
+  displayName: string;
+  anonymous: boolean;
   rate: number;
 }
 export interface Rate extends BaseRate {
@@ -115,6 +118,9 @@ export const rateModel: Attributes = {
   histories: {
     type: 'array',
     typeof: rateHistoryModel
+  },
+  anonymous: {
+    type: 'boolean',
   }
 };
 
