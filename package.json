@@ -1,6 +1,6 @@
 {
   "name": "rate-core",
-  "version": "0.5.4",
+  "version": "0.6.0",
   "description": "rate",
   "main": "./lib/index.js",
   "types": "./src/index.ts",
@@ -21,6 +21,7 @@
   },
   "keywords": [
     "rate",
-    "rate core"
+    "rate core",
+    "rate-core"
   ]
 }

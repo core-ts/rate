@@ -68,7 +68,7 @@ export interface RatesFilter extends RateFilter {
   rate10: number;
 }
 export interface BaseRepository<R> {
-  insert(rate: R, newInfo?: boolean): Promise<number>;
+  create(rate: R, newInfo?: boolean): Promise<number>;
   update(rate: R, oldRate: number): Promise<number>;
   load(id: string, author: string): Promise<R | null>;
 }
@@ -90,12 +90,12 @@ export const rateModel: Attributes = {
   id: {
     key: true,
     required: true,
-    match: 'equal'
+    operator: '='
   },
   author: {
     key: true,
     required: true,
-    match: 'equal'
+    operator: '='
   },
   rate: {
     type: 'integer',
@@ -108,10 +108,12 @@ export const rateModel: Attributes = {
     q: true,
   },
   usefulCount: {
+    column: "useful_count",
     type: 'integer',
     min: 0
   },
   replyCount: {
+    column: "reply_count",
     type: 'integer',
     min: 0
   },
@@ -245,11 +247,11 @@ export const rateInfoModel: Attributes = {
 export const ratesModel: Attributes = {
   id: {
     key: true,
-    match: 'equal'
+    operator: '='
   },
   author: {
     key: true,
-    match: 'equal'
+    operator: '='
   },
   rate: {
     type: 'number'

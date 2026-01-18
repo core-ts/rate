@@ -14,12 +14,12 @@ export class RateService implements Rater<Rate> {
     rate.time = new Date();
     const info = await this.infoRepository.exist(rate.id);
     if (!info) {
-      const r0 = await this.repository.insert(rate, true);
+      const r0 = await this.repository.create(rate, true);
       return r0;
     }
     const exist = await this.repository.load(rate.id, rate.author);
     if (!exist) {
-      const r1 = await this.repository.insert(rate);
+      const r1 = await this.repository.create(rate);
       return r1;
     }
     const sr: ShortRate = { review: exist.review, rate: exist.rate, time: exist.time };
@@ -55,12 +55,12 @@ export class RatesService implements Rater<Rates> {
     }
     rate.time = new Date();
     if (!info) {
-      const r0 = await this.repository.insert(rate, true);
+      const r0 = await this.repository.create(rate, true);
       return r0;
     }
     const exist = await this.repository.load(rate.id, rate.author);
     if (!exist) {
-      const r1 = await this.repository.insert(rate);
+      const r1 = await this.repository.create(rate);
       return r1;
     }
     const sr: ShortRates = { review: exist.review, rates: exist.rates, time: exist.time };
