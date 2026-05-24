@@ -114,8 +114,7 @@ export class SqlRateRepository<R> {
     this.load = this.load.bind(this);
     this.create = this.create.bind(this);
     this.update = this.update.bind(this);
-    this.insertInfo = this.insertInfo.bind(this);
-    this.updateNewInfo = this.updateNewInfo.bind(this);
+    this.insertOrUpdateInfo = this.insertOrUpdateInfo.bind(this);
     this.updateOldInfo = this.updateOldInfo.bind(this);
   }
   map?: StringMap;
@@ -133,41 +132,37 @@ export class SqlRateRepository<R> {
       return rates && rates.length > 0 ? rates[0] : null;
     });
   }
-  create(rate: R, newInfo?: boolean, tx?: Transaction): Promise<number> {
+  create(rate: R, tx?: Transaction): Promise<number> {
     (rate as any)[this.rateIdField] = this.generateId()
     const stmt = this.buildToInsert(rate, this.table, this.attributes, this.db.param);
     if (stmt.query) {
       const obj: any = rate;
       const rateNum: number = obj[this.rateField];
       const id: string = obj[this.idField];
+
       const db = tx ? tx : this.db
-      if (newInfo) {
-        const query = this.insertInfo(rateNum);
-        const s2: Statement = { query, params: [id] };
-        return db.executeBatch([s2, stmt], true);
-      } else {
-        const query = this.updateNewInfo(rateNum);
-        const s2: Statement = { query, params: [id] };
-        return db.executeBatch([s2, stmt], true);
-      }
+      const query = this.insertOrUpdateInfo(rateNum);
+      const s2: Statement = { query, params: [id] };
+      return db.executeBatch([stmt, s2], true);
     } else {
       return Promise.resolve(-1);
     }
   }
-  protected insertInfo(r: number): string {
-    const rateCols: string[] = [];
+  protected insertOrUpdateInfo(r: number): string {
     const ps: string[] = [];
+    const rateCols: string[] = [];
     for (let i = 1; i <= this.max; i++) {
       rateCols.push(`${this.rate}${i}`);
       if (i === r) {
-        ps.push('' + 1);
+        ps.push('1');
       } else {
         ps.push('0');
       }
     }
     const query = `
       insert into ${this.infoTable} (${this.id}, ${this.rate}, ${this.count}, ${this.score}, ${rateCols.join(',')})
-      values (${this.db.param(1)}, ${r}, 1, ${r}, ${ps.join(',')})`;
+      values (${this.db.param(1)}, ${r}, 1, ${r}, ${ps.join(',')})
+      on conflict (${this.id}) do update set ${this.rate} = (${this.infoTable}.${this.score} + ${r})/(${this.infoTable}.${this.count} + 1), ${this.count} = ${this.infoTable}.${this.count} + 1, ${this.score} = ${this.infoTable}.${this.score} + ${r}, ${this.rate}${r} = ${this.infoTable}.${this.rate}${r} + 1`;
     return query;
   }
   update(rate: R, oldRate: number, tx?: Transaction): Promise<number> {
@@ -183,12 +178,6 @@ export class SqlRateRepository<R> {
     } else {
       return Promise.resolve(-1);
     }
-  }
-  protected updateNewInfo(r: number): string {
-    const query = `
-      update ${this.infoTable} set ${this.rate} = (${this.score} + ${r})/(${this.count} + 1), ${this.count} = ${this.count} + 1, ${this.score} = ${this.score} + ${r}, ${this.rate}${r} = ${this.rate}${r} + 1
-      where ${this.id} = ${this.db.param(1)}`;
-    return query;
   }
   protected updateOldInfo(newRate: number, oldRate: number): string {
     if (newRate === oldRate) {
@@ -224,7 +213,7 @@ export interface History {
 }
 
 export interface RateRepository {
-  create(rate: Rate, newInfo?: boolean, tx?: Transaction): Promise<number>
+  create(rate: Rate, tx?: Transaction): Promise<number>
   update(rate: Rate, oldRate: number, tx?: Transaction): Promise<number>
   load(id: string, author: string, tx?: Transaction): Promise<Rate | null>
 }
@@ -243,7 +232,7 @@ export interface UsefulRepository {
 }
 // tslint:disable-next-line:max-classes-per-file
 export class Rater implements RateService {
-  constructor(protected db: DB, protected rateRepository: RateRepository, protected rateSummaryRepository: RateSummaryRepository, protected usefulRepository: UsefulRepository) {
+  constructor(protected db: DB, protected rateRepository: RateRepository, protected usefulRepository: UsefulRepository) {
     this.getRate = this.getRate.bind(this)
     this.setUseful = this.setUseful.bind(this)
     this.removeUseful = this.removeUseful.bind(this)
@@ -259,18 +248,12 @@ export class Rater implements RateService {
     return this.usefulRepository.removeUseful(rateId, userId)
   }
   async rate(rateReq: SubmittedRate): Promise<number> {
-    const rate: Rate = {id: rateReq.id, author: rateReq.author, rate: rateReq.rate, time: new Date(), review: rateReq.review}
+    const rate: Rate = { id: rateReq.id, author: rateReq.author, rate: rateReq.rate, time: new Date(), review: rateReq.review }
     const tx = await this.db.beginTransaction()
     try {
-      const summary = await this.rateSummaryRepository.exist(rateReq.id, tx)
-      if (!summary) {
-        const res = await this.rateRepository.create(rate, true, tx)
-        await tx.commit()
-        return res;
-      }
       const exist = await this.rateRepository.load(rateReq.id, rateReq.author, tx)
       if (!exist) {
-        const res = await this.rateRepository.create(rate, false, tx)
+        const res = await this.rateRepository.create(rate, tx)
         await tx.commit()
         return res;
       }
